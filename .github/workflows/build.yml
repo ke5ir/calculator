@@ -1,0 +1,28 @@
+name: build
+on:
+  push:
+  workflow_dispatch:
+jobs:
+  desktop:
+    name: Сборка ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Установка зависимостей
+        run: npm install
+      - name: Сборка приложения
+        run: npm run dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-${{ matrix.os }}
+          path: |
+            dist/*.exe
+            dist/*.dmg
+          if-no-files-found: ignore
