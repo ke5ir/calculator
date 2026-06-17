@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Калькулятор раскроя — смета</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --canvas:#E9ECEE;
+    --surface:#FFFFFF;
+    --ink:#16191C;
+    --muted:#6B7378;
+    --line:#D8DCDF;
+    --line-soft:#E6E9EB;
+    --accent:#D9480F;     /* кромка реза — burnt amber */
+    --accent-ink:#9C3206;
+    --field:#F4F6F7;
+    --good:#0B7285;
+    --shadow:0 1px 2px rgba(20,25,28,.04),0 8px 24px rgba(20,25,28,.06);
+    --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+    --display:"Space Grotesk",system-ui,sans-serif;
+    --body:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:var(--canvas);
+    color:var(--ink);
+    font-family:var(--body);
+    line-height:1.45;
+    -webkit-font-smoothing:antialiased;
+    padding:18px 14px 64px;
+  }
+  .wrap{max-width:560px;margin:0 auto}
+
+  /* ---------- header ---------- */
+  header{margin:6px 2px 18px}
+  .eyebrow{
+    font-family:var(--mono);
+    font-size:11px;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--muted);margin:0 0 6px;
+  }
+  h1{
+    font-family:var(--display);
+    font-weight:700;font-size:26px;line-height:1.08;margin:0;
+    letter-spacing:-.01em;
+  }
+  .lede{color:var(--muted);font-size:13.5px;margin:8px 0 0;max-width:42ch}
+
+  /* ---------- panels ---------- */
+  .panel{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:14px;
+    box-shadow:var(--shadow);
+    padding:18px 16px;
+    margin-top:16px;
+  }
+  .panel-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:0 0 14px}
+  .panel-head h2{
+    font-family:var(--display);font-weight:600;font-size:16px;margin:0;
+    display:flex;align-items:center;gap:9px;
+  }
+  .tag{
+    font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:3px 9px;
+  }
+  .dot{width:8px;height:8px;border-radius:2px;background:var(--accent);display:inline-block}
+
+  /* ---------- fields ---------- */
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .field{display:flex;flex-direction:column;gap:6px}
+  .field.full{grid-column:1 / -1}
+  label{
+    font-family:var(--mono);font-size:11px;letter-spacing:.04em;
+    color:var(--muted);text-transform:uppercase;
+  }
+  input,select{
+    font-family:var(--body);font-size:16px;color:var(--ink);
+    background:var(--field);
+    border:1px solid var(--line);border-radius:9px;
+    padding:11px 12px;width:100%;appearance:none;
+    transition:border-color .12s ease, box-shadow .12s ease, background .12s ease;
+  }
+  input[type=number]{font-family:var(--mono);font-weight:500;letter-spacing:.01em}
+  select{
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' fill='none' stroke='%236B7378' stroke-width='1.6' stroke-linecap='round'/></svg>");
+    background-repeat:no-repeat;background-position:right 12px center;padding-right:34px;
+  }
+  input:focus,select:focus{
+    outline:none;border-color:var(--accent);
+    box-shadow:0 0 0 3px rgba(217,72,15,.15);background:#fff;
+  }
+  .suffix{position:relative}
+  .suffix input{padding-right:42px}
+  .suffix .unit{
+    position:absolute;right:12px;top:50%;transform:translateY(-50%);
+    font-family:var(--mono);font-size:12px;color:var(--muted);pointer-events:none;
+  }
+  #customNameField{display:none}
+
+  /* ---------- button ---------- */
+  .btn{
+    width:100%;margin-top:16px;border:none;cursor:pointer;
+    font-family:var(--display);font-weight:600;font-size:15px;letter-spacing:.01em;
+    color:#fff;background:var(--accent);border-radius:10px;padding:14px;
+    transition:transform .08s ease, background .15s ease;
+  }
+  .btn:hover{background:var(--accent-ink)}
+  .btn:active{transform:scale(.99)}
+  .btn.ghost{
+    background:transparent;color:var(--muted);border:1px solid var(--line);
+    font-weight:500;font-size:13px;padding:10px;margin-top:14px;
+  }
+  .btn.ghost:hover{color:var(--ink);border-color:var(--muted);background:transparent}
+
+  /* ---------- readout ---------- */
+  .readout{
+    background:var(--ink);color:#fff;border-radius:14px;
+    padding:20px 18px;margin-top:16px;box-shadow:var(--shadow);
+    border:1px solid #000;
+  }
+  .readout .rlabel{
+    font-family:var(--mono);font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;
+    color:#8b949c;margin:0 0 4px;
+  }
+  .total{
+    font-family:var(--mono);font-weight:700;font-size:40px;line-height:1;
+    color:var(--accent);letter-spacing:-.02em;
+    transition:transform .18s ease;
+  }
+  .total.flash{transform:scale(1.04)}
+  .total .cur{font-size:22px;color:#fff;margin-left:4px}
+  .breakdown{margin-top:16px;border-top:1px solid #2b3036;padding-top:12px}
+  .brow{
+    display:flex;justify-content:space-between;align-items:baseline;gap:12px;
+    padding:5px 0;font-size:13.5px;
+  }
+  .brow .k{color:#a9b1b8}
+  .brow .k small{color:#6c757d;font-family:var(--mono);font-size:11px;margin-left:6px}
+  .brow .v{font-family:var(--mono);font-weight:500;color:#fff;white-space:nowrap}
+
+  /* ---------- price grid ---------- */
+  .hint{font-size:12.5px;color:var(--muted);margin:-4px 0 14px}
+  .subhead{
+    font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--muted);margin:18px 0 8px;display:flex;align-items:center;gap:8px;
+  }
+  .subhead:first-of-type{margin-top:0}
+  .subhead::after{content:"";flex:1;height:1px;background:var(--line-soft)}
+  .ptable-scroll{overflow-x:auto;margin:0 -4px;padding:0 4px 2px}
+  table.ptable{border-collapse:collapse;width:100%;min-width:380px}
+  table.ptable th,table.ptable td{padding:6px 5px;text-align:center}
+  table.ptable thead th{
+    font-family:var(--mono);font-size:11px;font-weight:500;color:var(--muted);
+    border-bottom:1px solid var(--line);padding-bottom:8px;
+  }
+  table.ptable tbody th{
+    text-align:left;font-family:var(--body);font-weight:500;font-size:13px;
+    color:var(--ink);white-space:nowrap;padding-right:8px;
+  }
+  table.ptable td input{
+    font-family:var(--mono);font-size:13.5px;text-align:right;
+    padding:8px 8px;border-radius:7px;
+  }
+  tbody tr.active th{color:var(--accent-ink);font-weight:700}
+  tbody tr.active td input{border-color:rgba(217,72,15,.4);background:#FFF6F1}
+  .work-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .footer-note{
+    font-family:var(--mono);font-size:11px;color:var(--muted);
+    text-align:center;margin:22px 0 0;line-height:1.6;
+  }
+  @media (max-width:420px){
+    .grid{grid-template-columns:1fr}
+    .total{font-size:34px}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{transition:none!important}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">Раскрой · смета</p>
+    <h1>Калькулятор стоимости</h1>
+    <p class="lede">Введите размеры детали и длину реза — цена считается сразу. Актуальные цены задаются ниже и сохраняются в браузере.</p>
+  </header>
+
+  <!-- ПАРАМЕТРЫ -->
+  <section class="panel">
+    <div class="panel-head">
+      <h2><span class="dot"></span>Параметры</h2>
+      <span class="tag">деталь</span>
+    </div>
+
+    <div class="grid">
+      <div class="field full">
+        <label for="material">Материал</label>
+        <select id="material">
+          <option value="plywood">Фанера</option>
+          <option value="acrylic">Оргстекло</option>
+          <option value="plastic">Пластик</option>
+          <option value="pet">ПЭТ</option>
+          <option value="custom">Свой материал</option>
+        </select>
+      </div>
+
+      <div class="field full" id="customNameField">
+        <label for="customName">Название материала</label>
+        <input type="text" id="customName" placeholder="например, ХДФ 3 мм" autocomplete="off">
+      </div>
+
+      <div class="field">
+        <label for="thickness">Толщина</label>
+        <select id="thickness">
+          <option value="3">3 мм</option>
+          <option value="4">4 мм</option>
+          <option value="6" selected>6 мм</option>
+          <option value="8">8 мм</option>
+          <option value="10">10 мм</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="width">Ширина</label>
+        <div class="suffix"><input type="number" id="width" inputmode="decimal" min="0" step="0.001" placeholder="0"><span class="unit">м</span></div>
+      </div>
+
+      <div class="field">
+        <label for="height">Высота</label>
+        <div class="suffix"><input type="number" id="height" inputmode="decimal" min="0" step="0.001" placeholder="0"><span class="unit">м</span></div>
+      </div>
+
+      <div class="field">
+        <label for="cut">Длина резки</label>
+        <div class="suffix"><input type="number" id="cut" inputmode="decimal" min="0" step="0.01" placeholder="0"><span class="unit">м</span></div>
+      </div>
+
+      <div class="field full">
+        <label for="abris">Длина абриса (гравировка)</label>
+        <div class="suffix"><input type="number" id="abris" inputmode="decimal" min="0" step="0.01" placeholder="0"><span class="unit">м</span></div>
+      </div>
+    </div>
+
+    <button class="btn" id="calcBtn">Рассчитать</button>
+  </section>
+
+  <!-- РЕЗУЛЬТАТ -->
+  <section class="readout">
+    <p class="rlabel">Итого</p>
+    <div class="total" id="total">0<span class="cur">₽</span></div>
+    <div class="breakdown">
+      <div class="brow"><span class="k">Площадь <small id="areaDim">0 × 0 м</small></span><span class="v" id="areaVal">0 м²</span></div>
+      <div class="brow"><span class="k">Материал <small id="matRate">0 ₽/м²</small></span><span class="v" id="matVal">0 ₽</span></div>
+      <div class="brow"><span class="k">Резка <small id="cutRate">0 ₽/м</small></span><span class="v" id="cutVal">0 ₽</span></div>
+      <div class="brow"><span class="k">Абрис <small id="abrisRate">0 ₽/м</small></span><span class="v" id="abrisVal">0 ₽</span></div>
+    </div>
+  </section>
+
+  <!-- ЦЕНЫ -->
+  <section class="panel">
+    <div class="panel-head">
+      <h2><span class="dot"></span>Цены</h2>
+      <span class="tag">актуальные</span>
+    </div>
+    <p class="hint">Впишите свои цены — расчёт обновится сразу. Значения сохраняются в этом браузере. Текущая строка для выбранного материала подсвечена.</p>
+
+    <div class="subhead">Материал · ₽ за м²</div>
+    <div class="ptable-scroll">
+      <table class="ptable">
+        <thead>
+          <tr>
+            <th style="text-align:left">Материал \ толщина</th>
+            <th>3 мм</th><th>4 мм</th><th>6 мм</th><th>8 мм</th><th>10 мм</th>
+          </tr>
+        </thead>
+        <tbody id="priceBody"><!-- заполняется JS --></tbody>
+      </table>
+    </div>
+
+    <div class="subhead">Работа · ₽ за погонный метр</div>
+    <div class="work-grid">
+      <div class="field">
+        <label for="rateCut">Резка</label>
+        <div class="suffix"><input type="number" id="rateCut" inputmode="decimal" min="0" step="0.5"><span class="unit">₽/м</span></div>
+      </div>
+      <div class="field">
+        <label for="rateAbris">Абрис</label>
+        <div class="suffix"><input type="number" id="rateAbris" inputmode="decimal" min="0" step="0.5"><span class="unit">₽/м</span></div>
+      </div>
+    </div>
+
+    <button class="btn ghost" id="resetBtn">Сбросить к примерным ценам</button>
+  </section>
+
+  <p class="footer-note">Цены в таблице — примерные. Замените на свои.</p>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // --- модель материалов и толщин ---
+  var MATERIALS = [
+    {key:"plywood", name:"Фанера"},
+    {key:"acrylic", name:"Оргстекло"},
+    {key:"plastic", name:"Пластик"},
+    {key:"pet",     name:"ПЭТ"},
+    {key:"custom",  name:"Свой материал"}
+  ];
+  var THICKS = [3,4,6,8,10];
+
+  // примерные стартовые цены (₽/м²), которые пользователь заменит своими
+  var DEFAULTS = {
+    material:{
+      plywood:{3:400, 4:500, 6:650, 8:850, 10:1000},
+      acrylic:{3:1200,4:1500,6:2200,8:3000,10:3800},
+      plastic:{3:700, 4:850, 6:1100,8:1400,10:1700},
+      pet:    {3:600, 4:750, 6:1000,8:1300,10:1600},
+      custom: {3:0,   4:0,   6:0,   8:0,   10:0}
+    },
+    rates:{cut:25, abris:15}
+  };
+
+  var STORE_KEY = "calc_prices_v1";
+
+  // --- безопасное хранилище: localStorage с откатом в память ---
+  // на боевом сайте (GitHub Pages) цены сохраняются между визитами;
+  // в средах без localStorage просто работает в памяти, без ошибок.
+  var mem = {};
+  var storage = {
+    get:function(k){ try{ return window.localStorage.getItem(k); }catch(e){ return (k in mem)?mem[k]:null; } },
+    set:function(k,v){ try{ window.localStorage.setItem(k,v); }catch(e){ mem[k]=v; } }
+  };
+
+  function deepClone(o){ return JSON.parse(JSON.stringify(o)); }
+
+  function loadPrices(){
+    var data = deepClone(DEFAULTS);
+    var raw = storage.get(STORE_KEY);
+    if(raw){
+      try{
+        var saved = JSON.parse(raw);
+        if(saved && saved.material){
+          MATERIALS.forEach(function(m){
+            THICKS.forEach(function(t){
+              var v = saved.material[m.key] && saved.material[m.key][t];
+              if(typeof v === "number" && isFinite(v)) data.material[m.key][t] = v;
+            });
+          });
+        }
+        if(saved && saved.rates){
+          if(isFinite(saved.rates.cut))   data.rates.cut   = saved.rates.cut;
+          if(isFinite(saved.rates.abris)) data.rates.abris = saved.rates.abris;
+        }
+      }catch(e){/* битые данные — игнорируем */}
+    }
+    return data;
+  }
+
+  function savePrices(){
+    storage.set(STORE_KEY, JSON.stringify(prices));
+  }
+
+  var prices = loadPrices();
+
+  // --- элементы ---
+  var $ = function(id){ return document.getElementById(id); };
+  var elMaterial=$("material"), elCustomWrap=$("customNameField"), elCustomName=$("customName"),
+      elThick=$("thickness"), elW=$("width"), elH=$("height"), elCut=$("cut"), elAbris=$("abris"),
+      elRateCut=$("rateCut"), elRateAbris=$("rateAbris"), elBody=$("priceBody"),
+      elTotal=$("total");
+
+  // --- форматирование ---
+  var rub = new Intl.NumberFormat("ru-RU",{style:"currency",currency:"RUB",maximumFractionDigits:0});
+  var num0 = new Intl.NumberFormat("ru-RU",{maximumFractionDigits:0});
+  function money(v){ return rub.format(Math.round(v||0)); }
+  function perM2(v){ return num0.format(Math.round(v||0)) + " ₽/м²"; }
+  function perM(v){ return num0.format(Math.round(v||0)) + " ₽/м"; }
+  function area(v){
+    var s = (Math.round((v||0)*1000)/1000).toString().replace(".",",");
+    return s + " м²";
+  }
+  function parseNum(str){
+    if(str==null) return 0;
+    var n = parseFloat(String(str).replace(",", ".").trim());
+    return isFinite(n) && n>0 ? n : 0;
+  }
+
+  // --- построение таблицы цен ---
+  function buildTable(){
+    var html = "";
+    MATERIALS.forEach(function(m){
+      html += '<tr data-mat="'+m.key+'"><th>'+m.name+'</th>';
+      THICKS.forEach(function(t){
+        var v = prices.material[m.key][t];
+        html += '<td><input type="number" inputmode="decimal" min="0" step="10" '+
+                'data-mat="'+m.key+'" data-thick="'+t+'" value="'+v+'"></td>';
+      });
+      html += "</tr>";
+    });
+    elBody.innerHTML = html;
+
+    // обработчики на ячейки
+    Array.prototype.forEach.call(elBody.querySelectorAll("input"), function(inp){
+      inp.addEventListener("input", function(){
+        var mat=inp.getAttribute("data-mat"), t=inp.getAttribute("data-thick");
+        prices.material[mat][t] = parseNum(inp.value);
+        savePrices();
+        calc();
+      });
+    });
+  }
+
+  function highlightActiveRow(){
+    var active = elMaterial.value;
+    Array.prototype.forEach.call(elBody.querySelectorAll("tr"), function(tr){
+      tr.classList.toggle("active", tr.getAttribute("data-mat")===active);
+    });
+  }
+
+  // --- расчёт ---
+  function flash(){
+    elTotal.classList.add("flash");
+    setTimeout(function(){ elTotal.classList.remove("flash"); }, 180);
+  }
+
+  function calc(doFlash){
+    var mat = elMaterial.value;
+    var t   = elThick.value;
+    var w   = parseNum(elW.value);
+    var h   = parseNum(elH.value);
+    var lc  = parseNum(elCut.value);
+    var la  = parseNum(elAbris.value);
+
+    var matRate   = prices.material[mat][t] || 0;
+    var rateCut   = parseNum(elRateCut.value);
+    var rateAbris = parseNum(elRateAbris.value);
+
+    var s = w * h;                 // площадь, м²
+    var costMat   = s  * matRate;
+    var costCut   = lc * rateCut;
+    var costAbris = la * rateAbris;
+    var total = costMat + costCut + costAbris;
+
+    // итог
+    elTotal.innerHTML = num0.format(Math.round(total)) + '<span class="cur">₽</span>';
+
+    // разбивка
+    $("areaDim").textContent = (w?String(w).replace(".",","):"0") + " × " + (h?String(h).replace(".",","):"0") + " м";
+    $("areaVal").textContent = area(s);
+    $("matRate").textContent = perM2(matRate);
+    $("matVal").textContent  = money(costMat);
+    $("cutRate").textContent = perM(rateCut);
+    $("cutVal").textContent  = money(costCut);
+    $("abrisRate").textContent = perM(rateAbris);
+    $("abrisVal").textContent  = money(costAbris);
+
+    if(doFlash) flash();
+  }
+
+  // --- цена работ: ввод ---
+  function syncRateInputs(){
+    elRateCut.value   = prices.rates.cut;
+    elRateAbris.value = prices.rates.abris;
+  }
+  elRateCut.addEventListener("input", function(){ prices.rates.cut = parseNum(elRateCut.value); savePrices(); calc(); });
+  elRateAbris.addEventListener("input", function(){ prices.rates.abris = parseNum(elRateAbris.value); savePrices(); calc(); });
+
+  // --- материал / толщина / размеры ---
+  function onMaterialChange(){
+    elCustomWrap.style.display = (elMaterial.value==="custom") ? "flex" : "none";
+    highlightActiveRow();
+    calc();
+  }
+  elMaterial.addEventListener("change", onMaterialChange);
+  elThick.addEventListener("change", calc);
+  [elW, elH, elCut, elAbris, elCustomName].forEach(function(el){
+    el.addEventListener("input", calc);
+  });
+
+  // кнопка «Рассчитать» — пересчёт + вспышка (на случай ручного запроса)
+  $("calcBtn").addEventListener("click", function(){ calc(true); });
+
+  // сброс к примерным ценам
+  $("resetBtn").addEventListener("click", function(){
+    if(!confirm("Вернуть примерные цены? Ваши значения будут заменены.")) return;
+    prices = deepClone(DEFAULTS);
+    savePrices();
+    buildTable();
+    highlightActiveRow();
+    syncRateInputs();
+    calc();
+  });
+
+  // --- init ---
+  buildTable();
+  highlightActiveRow();
+  syncRateInputs();
+  onMaterialChange();
+  calc();
+})();
+</script>
+</body>
+</html>
