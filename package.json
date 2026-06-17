@@ -1,0 +1,36 @@
+{
+  "name": "raskroy-calculator",
+  "version": "1.0.0",
+  "description": "Калькулятор стоимости раскроя",
+  "main": "main.js",
+  "author": "alaicev",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^34.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.alaicev.calculator",
+    "productName": "Raskroy Calculator",
+    "files": [
+      "index.html",
+      "main.js"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "mac": {
+      "target": ["dmg"],
+      "category": "public.app-category.productivity"
+    },
+    "win": {
+      "target": ["nsis", "portable"]
+    },
+    "linux": {
+      "target": ["AppImage"]
+    }
+  }
+}
